@@ -35,7 +35,8 @@ var
 
 
 proc load() : Btnboxes =
-  let data = getBoxes(getGrid())
+  var data = getBoxes(getGrid())
+  data.inspectBoxes()
 
   for each in data:
     var btnbox : Btnbox

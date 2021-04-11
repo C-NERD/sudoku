@@ -1,4 +1,5 @@
 from random import randomize, sample, rand
+from sequtils import count
 
 type
 
@@ -20,6 +21,28 @@ proc inVertical(grid : Grid, pos, num : int) : bool =
             continue
 
     return false
+
+proc toBox(data : seq[int]) : Box =
+    if data.len == 9:
+        result[0] = data[0..2]
+        result[1] = data[3..5]
+        result[2] = data[6..8]
+
+proc inspectBoxes*(boxes : var Boxes) =
+    for each in 0..<boxes.len:
+        var box : seq[int]
+
+        for each2 in boxes[each]:
+            box.add(each2)
+
+        for each3 in 1..9:
+            if box.count(each3) > 1:
+
+                for each4 in 0..<box.len:
+                    if box[each4] == each3:
+                        box[each4] = 0
+
+        boxes[each] = box.toBox
 
 proc getGrid*() : Grid =
     echo "generating random numbers..."
@@ -79,8 +102,9 @@ proc getBoxes*(grid : Grid) : Boxes =
         result.add(b1)
         result.add(b2)
         result.add(b3)
-    
-    echo result
+
 
 when isMainModule:
-    echo getBoxes(getGrid())
+    var boxes = getBoxes(getGrid())
+    boxes.inspectBoxes()
+    echo boxes
