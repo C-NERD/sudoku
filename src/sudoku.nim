@@ -19,7 +19,7 @@ box. Now using this rule fill all empty slots and have fun playing Sudoku.
 
   white : Color = rgb(255, 255, 255)
   aliceblue : Color = rgb(240, 248, 255)
-  black : Color = rgb(0, 0, 0)
+  blue : Color = rgb(15, 15, 127)
 
   title = "Sudoku"
   imgPath = "img/icon.png"
@@ -35,8 +35,11 @@ var
 
 
 proc load() : Btnboxes =
-  var data = getBoxes(getGrid())
-  data.inspectBoxes()
+  var grid = getGrid()
+  grid.generateNumbers()
+  var data = grid.getBoxes()
+  #var data = getBoxes(getGrid())
+  #data.inspectBoxes()
 
   for each in data:
     var btnbox : Btnbox
@@ -47,10 +50,15 @@ proc load() : Btnboxes =
       for each3 in each2:
         let text = newTextBox("")
 
-        if each3 != 0 and each3 > 0:
-          text.text = $each3
+        if each3.value != $0 and each3.value > $0:
+          text.text = $each3.value
           text.fontBold = true
+          text.fontFamily = "Ariel"
           text.editable = false
+          text.textColor = blue
+
+        else:
+          text.fontFamily = "San-Serif"
           
         text.setPosition(textBoxSize, textBoxSize)
         btnsnlabels.add(text)
