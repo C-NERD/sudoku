@@ -36,7 +36,10 @@ var
 
 proc load() : Btnboxes =
   var grid = getGrid()
-  grid.generateNumbers()
+  var tile = grid.toTile()
+  tile.generateNumbers()
+  grid = tile.toGrid()
+  
   var data = grid.getBoxes()
   #var data = getBoxes(getGrid())
   #data.inspectBoxes()
