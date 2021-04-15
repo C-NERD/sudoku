@@ -1,6 +1,6 @@
 from random import randomize, sample
 from strutils import parseInt, format
-from sequtils import keepItIf
+from sequtils import keepItIf, deduplicate
 from os import sleep
 
 type
@@ -24,7 +24,7 @@ type
 const 
     letters : array[9, char] = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I']
 
-proc inspect(grid : var Grid, cell : Cell) : bool {.deprecated.} =
+proc inspect(grid : Grid, cell : Cell) : bool {.deprecated.} =
     var values : seq[Cell]
 
     for each in grid:
@@ -41,7 +41,7 @@ proc inspect(grid : var Grid, cell : Cell) : bool {.deprecated.} =
     return false
 
 
-proc inspect(tile : var Tile, cell : Cell) : bool =
+proc inspect(tile : Tile, cell : Cell,) : bool =
     for each in tile:
         if cell.alias == each.alias:
             continue
@@ -51,6 +51,19 @@ proc inspect(tile : var Tile, cell : Cell) : bool =
                 return true
 
     return false
+
+proc multInspect(tile : Tile, cell : Cell,) : tuple[value : int, cond : bool] =
+    for each in tile:
+        if cell.alias == each.alias:
+            continue
+
+        elif each.alias in cell.horizontal or each.alias in cell.vertical or each.alias in cell.box:
+            for each2 in cell.values:
+                if $each2 == each.value:
+                    result = (each2, true)
+
+                else:
+                    return (each2, false)
 
 
 proc getBox(letter : char, number : int) : seq[string] =
@@ -123,6 +136,23 @@ proc toGrid*(tile : Tile) : Grid =
 
         result[num] = arrayrow
 
+proc clean(tile : var Tile, cell : Cell) =
+    for num in 0..<tile.len:
+
+        if cell.value != "":
+
+            if tile[num].alias in cell.horizontal or 
+                tile[num].alias in cell.vertical or 
+                tile[num].alias in cell.box:
+
+                let curindex = find(
+                    tile[num].values, 
+                    cell.value.parseInt
+                    )
+
+                if curindex != -1:    
+                    tile[num].values.del(curindex)
+
 proc displayTile(tile : Tile) =
     for num in 0..<tile.len:
         var value : string
@@ -176,43 +206,152 @@ proc getGrid*() : Grid =
     return grid
 
 
-proc backTrack(tile : var Tile, cell : Cell) =
-    proc correct(tile : var Tile, cell : Cell) {.closure.} =
+#[proc backTrack(tile : var Tile, cell : Cell) =
+    proc correct(tile : var Tile, cell : Cell) : string {.closure.} =
+        var num1 : int
+
         for num in 0..<tile.len:
 
-            if tile[num].alias in cell.horizontal or 
-                tile[num].alias in cell.vertical or 
-                tile[num].alias in cell.box:
+            if cell.value != "":
 
-                let curindex = find(
-                    tile[num].values, 
-                    cell.value.parseInt
-                    )
+                if tile[num].alias in cell.horizontal or 
+                    tile[num].alias in cell.vertical or 
+                    tile[num].alias in cell.box:
 
-                if curindex == -1:    
-                    tile[num].values.add(cell.value.parseInt)
+                    let curindex = find(
+                        tile[num].values, 
+                        cell.value.parseInt
+                        )
+
+                    if curindex == -1:    
+                        tile[num].values.add(cell.value.parseInt)
+
+                elif tile[num].alias == cell.alias:
+                    num1 = num
+
+        if cell.value != "":
+            var refinedseq = tile[num1].values
+            refinedseq.del(find(refinedseq, cell.value.parseInt))
+
+            if refinedseq != @[]:
+                return $sample(refinedseq)
+
+            else:
+                return ""
+
+        else:
+            return ""
 
     block backtrack:
-        for num3 in cell.tilepos..0:
+        for num3 in countdown(cell.tilepos, 0):
             echo "Backtracking at ", tile[num3]
             var count : int
 
             while true:
-                if count >= tile[num3].values.len:
-                    break
-
+                #if count >= tile[num3].values.len:
+                #    break
+                var cond : bool
                 for num4 in tile[num3].tilepos..cell.tilepos:
-                    correct(tile, tile[num3])
-                    tile[num3].value = $sample(tile[num3].values)
+                    tile[num3].value = correct(tile, tile[num3])
+                    clean(tile, tile[num3])
                     displayTile(tile)
 
-                if not tile.inspect(tile[num3]):
+                    if num4 == cell.tilepos:
+                        cond = true
+
+                    else:
+                        cond = false
+
+                let check = tile.inspect(tile[num3])
+                if not check and cond:
                     break backtrack
 
-                else:
+                elif tile[num3].value == "" and check:
+                    break
+
+                elif check:
                     echo "continue 2"
+                    echo tile[num3].alias, " ", tile[num3].values
                     count.inc()
-                    continue
+                    continue]#
+
+
+proc foreSight(tile : Tile, curcell, backcell : Cell) : tuple[tile : Tile, success : bool] =
+    var
+        tile = tile
+        values : seq[int]
+
+    proc correct(tile : var Tile, pos : int) {.closure.} =
+        for num in 0..<tile.len:
+
+            if tile[num].alias in tile[pos].horizontal or 
+                tile[num].alias in tile[pos].vertical or 
+                tile[num].alias in tile[pos].box:
+
+                let curindex = find(
+                    tile[num].values, 
+                    tile[pos].value.parseInt
+                    )
+
+                #if curindex == -1:    
+                 #   tile[num].values.add(tile[pos].value.parseInt)
+                if curindex != -1:
+                    tile[num].values.del(curindex)
+
+    echo curcell.tilepos, "     ", backcell.tilepos
+    for num in curcell.tilepos..backcell.tilepos:
+        var 
+            checked : seq[string]
+            check : bool = true
+
+        values = tile[num].values
+        echo values
+
+        if tile[num].value != "":
+            values.keepItIf(it != tile[num].value.parseInt)
+
+        if values == @[]:
+            return (tile, false)
+
+        while true:        
+            tile[num].value = $sample(values)
+            checked.add(tile[num].value)
+
+            if not tile.inspect(tile[num]):
+                tile.correct(tile[num].tilepos)
+                break
+
+            else:
+                for each in values:
+                    if $each notin checked:
+                        check = false
+                        break
+
+                if check:
+                    #echo "check waste"
+                    #tile.displayTile()
+                    return (tile, false)
+
+        tile.displayTile()
+    return (tile, true)
+
+
+
+proc backTrack(tile : var Tile, cell : Cell) =
+
+    for num in countdown(cell.tilepos, 0):
+        echo "Backtracking at ", tile[num]
+        tile.displayTile()
+        
+        if tile[num].value == "":
+            continue
+
+        else:
+            let values = foreSight(tile, tile[num], cell)
+
+            if values.success:
+                tile = values.tile
+                break
 
 
 
@@ -229,10 +368,7 @@ proc generateNumbers*(tile : var Tile) =
                 var num = num
                 
                 if tile[num].values == @[]:
-                    #[if tile.backTrack(tile[num - 2]):
-                        num = num - 2
-                        tile.displayTile()]#
-                    tile.backTrack(tile[num - 1])
+                    tile.backTrack(tile[num])
                     break
 
                 else:
@@ -242,7 +378,13 @@ proc generateNumbers*(tile : var Tile) =
                 tile[num].value = $cellvalue
 
                 if tile.inspect(tile[num]):
+
+                    if tile[num].values == @[] or tile[num].values.len <= 1:
+                        tile.backTrack(tile[num])
+                        break
+
                     echo "continue 1"
+                    sleep(5000)
                     continue
 
                 else:
@@ -321,26 +463,4 @@ proc getBoxes*(grid : Grid) : Boxes =
 when isMainModule:
     var grid = getGrid()
     var tile = grid.toTile()
-    #echo tile.toGrid() == grid
-    #for each in tile:
-    #    echo each.tilepos
-    #echo grid
     tile.generateNumbers()
-    #[var count : int
-
-    for each in tile:
-        var sym : string
-
-        if count == 9:
-            count = 0
-            stdout.write("\n\n")
-
-        count.inc()
-        if count mod 3 == 0:
-            sym = "     |     "
-        
-        else:
-            sym = "     "
-
-        stdout.write(each.value, sym)]#
-    #echo grid.getBoxes()
