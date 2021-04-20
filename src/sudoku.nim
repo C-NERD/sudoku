@@ -1,4 +1,4 @@
-import nigui, logic
+import nigui, logic, datafunc
 import nigui/[msgBox]
 from os import fileExists
 
