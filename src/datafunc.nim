@@ -1,4 +1,5 @@
 from os import sleep
+from strutils import parseInt
 
 type
 
@@ -73,3 +74,19 @@ proc displayTile*(tile : Tile) =
     
     echo "\n"
     sleep(500)
+
+proc chooseValue*(tile : var Tile, pos : int, value : string) =
+    tile[pos].value = value
+    for num in 0..<tile.len:
+
+        if tile[num].alias in tile[pos].horizontal or 
+            tile[num].alias in tile[pos].vertical or 
+            tile[num].alias in tile[pos].box:
+
+            let curindex = find(
+                tile[num].values, 
+                tile[pos].value.parseInt
+                )
+
+            if curindex != -1:
+                tile[num].values.del(curindex)

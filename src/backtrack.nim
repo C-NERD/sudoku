@@ -3,66 +3,99 @@ from strutils import parseInt
 from sequtils import keepItIf
 import datafunc
 
-proc foreSight(tile : Tile, curcell, backcell : Cell) : tuple[tile : Tile, success : bool] =
+proc foreSight(tile : Tile, curcell, lastcell : Cell) : tuple[success : bool, tile : Tile] =
+
     var
         tile = tile
         values : seq[int]
+        originalvalue : string
 
-    proc correct(tile : var Tile, pos : int) {.closure.} =
+    proc correct(tile : var Tile, pos : int, originalvalue : string) {.closure.} =
+        #This function is used to correct other cells related to the cell
+        #at position pos, it removes the curent value of the cell at position
+        #pos from the values attribute of it's relative and it adds it's
+        #original value to their values attribute
+
         for num in 0..<tile.len:
 
             if tile[num].alias in tile[pos].horizontal or 
                 tile[num].alias in tile[pos].vertical or 
                 tile[num].alias in tile[pos].box:
 
+                tile[num].values.add(originalvalue.parseInt)
                 let curindex = find(
                     tile[num].values, 
                     tile[pos].value.parseInt
                     )
 
-                #if curindex == -1:    
-                 #   tile[num].values.add(tile[pos].value.parseInt)
                 if curindex != -1:
                     tile[num].values.del(curindex)
 
-    echo curcell.tilepos, "     ", backcell.tilepos
+    proc checkCell(tile : Tile, cell : Cell) : tuple[posible : bool, value : string] {.closure.} =
+        #This function checks if the potencial values of a cell (last cell) are valid
+        #and it returns a tuple of bool and string
+
+        for value in cell.values:
+            
+            for pos in 0..<tile.len:
+                if cell.alias == tile[pos].alias:
+                    continue
+
+                elif tile[pos].alias in cell.horizontal or tile[pos].alias in cell.vertical or tile[pos].alias in cell.box:
+                    if tile[pos].value == cell.value:
+                        break
+
+                elif pos == tile.len - 1:
+                    return (posible : true, value : $value)
+
+        return (posible : false, value : "")
+
     randomize()
-    for num in curcell.tilepos..backcell.tilepos:
-        var 
-            checked : seq[string]
-            check : bool = true
+    for cellpos in countup(curcell.tilepos, lastcell.tilepos):
+        values = tile[cellpos].values
+        originalvalue = tile[cellpos].value
 
-        values = tile[num].values
-        echo values
+        if values == @[] or tile[cellpos].value == "":
+            continue
 
-        if tile[num].value != "":
-            values.keepItIf(it != tile[num].value.parseInt)
+        while true:
+            values.keepItIf(it != tile[cellpos].value.parseInt)
 
-        if values == @[]:
-            return (tile, false)
+            if values != @[]:
+                tile[cellpos].value = $sample(values)
 
-        while true:        
-            tile[num].value = $sample(values)
-            checked.add(tile[num].value)
+            else:
+                tile[cellpos].value = originalvalue
+                break
 
-            if not tile.inspect(tile[num]):
-                tile.correct(tile[num].tilepos)
+            if not tile.inspect(tile[cellpos]):
+                tile.correct(tile[cellpos].tilepos, originalvalue)
+                tile[cellpos].values.add(originalvalue.parseInt)
+                tile[cellpos].values.keepItIf(it != tile[cellpos].value.parseInt)
+                break
+
+            elif tile.inspect(tile[cellpos]) and values.len == 0:
+                #This checks if it's not able to find any suitable value
+                #from the list of available values if so it changes the
+                #cell value back to it's original one and then breaks the
+                #while loop
+
+                tile[cellpos].value = originalvalue
                 break
 
             else:
-                for each in values:
-                    if $each notin checked:
-                        check = false
-                        break
+                continue
 
-                if check:
-                    #echo "check waste"
-                    #tile.displayTile()
-                    return (tile, false)
+        let cellcondition = tile.checkCell(tile[lastcell.tilepos])
 
-        tile.displayTile()
-    return (tile, true)
+        if cellcondition.posible == true:
+            tile.chooseValue(lastcell.tilepos, cellcondition.value)
+            return (success : true, tile : tile)
 
+        else:
+            continue
+
+    return (success : false, tile : tile)
 
 
 proc backTrack*(tile : var Tile, cell : Cell) =
