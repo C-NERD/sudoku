@@ -1,6 +1,6 @@
 from os import sleep
-from random import randomize, shuffle
-from sequtils import keepItIf
+from random import randomize, shuffle, rand
+from sequtils import keepItIf, concat
 from strutils import parseInt
 
 type
@@ -69,7 +69,6 @@ proc inspectHorizontal(tile : Tile, cell : Cell, value : string) : bool =
             continue
 
         elif each.alias in cell.vertical:
-            echo cell.alias
             if each.value == value:
                 return false
 
@@ -83,11 +82,9 @@ proc inspectAndCorrect*(tile : Tile, row : array[9, Cell], values : var array[9,
     for pos in 0..<row.len:
         
         if tile.inspectHorizontal(row[pos], $values[pos]):
-            #echo "hello"
             continue
 
         else:
-            #echo "No Hello"
             condition = false
             break
 
@@ -291,3 +288,57 @@ proc getBoxes*(grid : Grid) : Box =
         result.add(b1)
         result.add(b2)
         result.add(b3)
+
+
+proc setLevel*(level : int, tile : Tile) : Tile =
+    let
+        levelseeds : array[3, int] = [3, 5, 6]
+
+    proc straighten(row1, row2, row3 : seq[Cell]) : seq[Cell] {.closure.} =
+        result = concat(row1, row2, row3)
+
+    proc fold(row : seq[Cell]) : seq[array[3, Cell]] {.closure.} =
+        
+        for pos in countup(0, row.len - 1, 3):
+            var innerrow = [row[pos], row[pos + 1], row[pos + 2]]
+            result.add(innerrow)
+
+    proc levelSetting(levelseed : int, tile : Tile) : Tile {.closure.} =
+
+        var 
+            grid = tile.toGrid()
+
+        for pos in countup(0, grid.len - 1, 3):
+            
+            randomize()
+            var
+                straightenedbox1 = straighten(grid[pos][0..2], grid[pos + 1][0..2], grid[pos + 2][0..2])
+                straightenedbox2 = straighten(grid[pos][3..5], grid[pos + 1][3..5], grid[pos + 2][3..5])
+                straightenedbox3 = straighten(grid[pos][6..8], grid[pos + 1][6..8], grid[pos + 2][6..8])
+
+            for seed in 1..levelseed:
+                let randpos1 = rand(0..8)
+                let randpos2 = rand(0..8)
+                let randpos3 = rand(0..8)
+
+                straightenedbox1[randpos1].value = $0
+                straightenedbox2[randpos2].value = $0
+                straightenedbox3[randpos3].value = $0
+
+            let
+                foldedbox1 = fold(straightenedbox1)
+                foldedbox2 = fold(straightenedbox2)
+                foldedbox3 = fold(straightenedbox3)
+
+            for foldpos in 0..2:
+                grid[pos + foldpos][0..2] = foldedbox1[foldpos]
+                grid[pos + foldpos][3..5] = foldedbox2[foldpos]
+                grid[pos + foldpos][6..8] = foldedbox3[foldpos]
+
+        result = grid.toTile()
+
+    if level in levelseeds:
+        result = levelSetting(level, tile)
+
+    else:
+        result = levelSetting(3, tile)

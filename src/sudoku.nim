@@ -1,4 +1,4 @@
-import nigui, logic, datafunc
+import nigui, shift, datafunc
 import nigui/[msgBox]
 from os import fileExists
 
@@ -35,14 +35,16 @@ var
 
 
 proc load() : Btnboxes =
-  var grid = getGrid()
-  var tile = grid.toTile()
+  var 
+    grid = getGrid()
+    tile = grid.toTile()
+
   tile.generateNumbers()
+  var  board = tile.shiftBoard(3)
+
+  tile = board.tile
   grid = tile.toGrid()
-  
   var data = grid.getBoxes()
-  #var data = getBoxes(getGrid())
-  #data.inspectBoxes()
 
   for each in data:
     var btnbox : Btnbox
