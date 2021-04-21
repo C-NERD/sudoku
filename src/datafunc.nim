@@ -1,12 +1,17 @@
 from os import sleep
+from random import randomize, shuffle
+from sequtils import keepItIf
 from strutils import parseInt
 
 type
 
-  Grid* = array[9, array[9, Cell]]
   Tile* = array[81, Cell]
-  Box* = array[3, seq[Cell]]
-  Boxes* = seq[Box]
+  Grid* = array[9, array[9, Cell]]
+  Box* = seq[array[3, seq[Cell]]]
+
+  Sudoku* = object
+    tile* : Tile
+    solution* : Tile
 
   Cell* = object
     tilepos* : int
@@ -19,25 +24,19 @@ type
     vertical* : seq[string]
     box* : seq[string]
 
-const 
+var
+    numbers* : array[9, int] = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+
+const
     letters* : array[9, char] = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I']
 
 
-proc inspect*(grid : Grid, cell : Cell) : bool {.deprecated.} =
-    var values : seq[Cell]
+proc isTileFull*(tile : Tile) : bool =
+    for cell in tile:
+        if cell.value == "":
+            return false
 
-    for each in grid:
-        values.add(each)
-
-    for each in values:
-        if cell.alias == each.alias:
-            continue
-
-        elif each.alias in cell.horizontal or each.alias in cell.vertical or each.alias in cell.box:
-            if each.value == cell.value:
-                return true
-
-    return false
+    return true
 
 
 proc inspect*(tile : Tile, cell : Cell,) : bool =
@@ -47,9 +46,89 @@ proc inspect*(tile : Tile, cell : Cell,) : bool =
 
         elif each.alias in cell.horizontal or each.alias in cell.vertical or each.alias in cell.box:
             if each.value == cell.value:
-                return true
+                return false
 
-    return false
+    return true
+
+
+proc inspect*(tile : Tile, cell : Cell, value : string) : bool =
+    for each in tile:
+        if cell.alias == each.alias:
+            continue
+
+        elif each.alias in cell.horizontal or each.alias in cell.vertical or each.alias in cell.box:
+            if each.value == value:
+                return false
+
+    return true
+
+
+proc inspectHorizontal(tile : Tile, cell : Cell, value : string) : bool =
+    for each in tile:
+        if cell.alias == each.alias:
+            continue
+
+        elif each.alias in cell.vertical:
+            echo cell.alias
+            if each.value == value:
+                return false
+
+    return true
+
+
+proc inspectAndCorrect*(tile : Tile, row : array[9, Cell], values : var array[9, int]) =
+    var
+        condition : bool = true
+
+    for pos in 0..<row.len:
+        
+        if tile.inspectHorizontal(row[pos], $values[pos]):
+            #echo "hello"
+            continue
+
+        else:
+            #echo "No Hello"
+            condition = false
+            break
+
+    if not condition:
+        randomize()
+        shuffle(values)
+        inspectAndCorrect(tile, row, values)
+
+
+proc inspectAndCorrect*(tile : Tile, cells : seq[Cell], values : var seq[int]) =
+    var
+        condition : bool = true
+
+    for pos in 0..<cells.len:
+        
+        if tile.inspectHorizontal(cells[pos], $values[pos]):
+            echo "hello"
+            continue
+
+        else:
+            echo "No Hello"
+            condition = false
+            break
+
+    if not condition:
+        randomize()
+        shuffle(values)
+        inspectAndCorrect(tile, cells, values)
+
+
+proc correctRow*(tile : Tile, row : array[9, Cell], values : array[9, int]) : array[9, int] =
+    var cellvalues : seq[int]
+
+    for pos in countup(0, row.len - 1, 3):
+        var value : seq[int] = values[pos..(pos + 2)]
+        tile.inspectAndCorrect(row[pos..(pos + 2)], value)
+        cellvalues.add(value)
+
+    for pos in 0..<cellvalues.len:
+        result[pos] = cellvalues[pos]
+
 
 proc displayTile*(tile : Tile) =
     for num in 0..<tile.len:
@@ -72,6 +151,7 @@ proc displayTile*(tile : Tile) =
 
         stdout.write(" " & value & " ")
     
+    stdout.write("\n-------------------------------------")
     echo "\n"
     sleep(500)
 
@@ -90,3 +170,124 @@ proc chooseValue*(tile : var Tile, pos : int, value : string) =
 
             if curindex != -1:
                 tile[num].values.del(curindex)
+
+
+proc getBox(letter : char, number : int) : seq[string] =
+    proc getBox2(number2 : array[3, int]) : seq[string] {.closure.} =
+
+        if ['A', 'B', 'C'].contains(letter):
+            let letter2 = ['A', 'B', 'C']
+
+            for num in 0..<number2.len:
+
+                for each in letter2:
+                    result.add(each & $number2[num])
+
+        elif ['D', 'E', 'F'].contains(letter):
+            let letter2 = ['D', 'E', 'F']
+
+            for num in 0..<number2.len:
+                
+                for each in letter2:
+                    result.add(each & $number2[num])
+
+        elif ['G', 'H', 'I'].contains(letter):
+            let letter2 = ['G', 'H', 'I']
+
+            for num in 0..<number2.len:
+                
+                for each in letter2:
+                    result.add(each & $number2[num])
+    
+    if [1, 2, 3].contains(number):
+        result = getBox2([1, 2, 3])
+
+    elif [4, 5, 6].contains(number):
+        result = getBox2([4, 5, 6])
+
+    elif [7, 8, 9].contains(number):
+        result = getBox2([7, 8, 9])
+
+
+proc toTile*(grid : Grid) : Tile =
+    var grid = grid
+    for num in 0..<grid.len:
+        if num > 0:
+            let start = num * 9
+
+            for num2 in start..(start + 8):
+                grid[num][num2 - start].tilepos = num2
+                
+            result[start..(start + 8)] = grid[num]
+
+        else:
+            for num2 in 0..8:
+                grid[num][num2].tilepos = num2
+
+            result[0..8] = grid[num]
+
+proc toGrid*(tile : Tile) : Grid =
+    var
+        first : int
+        last : int
+
+    for num in 0..8:
+        first = num * 9
+        last = first + 8
+        var seqrow : seq[Cell] = tile[first..last]
+        var arrayrow : array[9, Cell]
+
+        for num2 in 0..<seqrow.len:
+            arrayrow[num2] = seqrow[num2]
+
+        result[num] = arrayrow
+
+proc getGrid*() : Grid =
+    var grid : Grid
+    for num in 0..<grid.len:
+
+        for num2 in 0..<grid[num].len:
+            
+            grid[num][num2].values = @[1, 2, 3, 4, 5, 6, 7, 8, 9]
+            grid[num][num2].alias = letters[num] & $(num2 + 1)
+            grid[num][num2].letter = letters[num]
+            grid[num][num2].number = num2 + 1
+
+            grid[num][num2].box = getBox(grid[num][num2].letter, grid[num][num2].number)
+
+            for num3 in 1..9:
+                if num3 != grid[num][num2].number:
+                    grid[num][num2].horizontal.add(grid[num][num2].letter & $num3)
+
+                if letters[num3 - 1] != grid[num][num2].letter:
+                    grid[num][num2].vertical.add(letters[num3 - 1] & $(num2 + 1))
+
+            grid[num][num2].box.keepItIf(
+                it notin grid[num][num2].horizontal and 
+                it notin grid[num][num2].vertical and
+                it != grid[num][num2].alias
+                )
+
+    return grid
+
+
+proc getBoxes*(grid : Grid) : Box =
+
+    for pos in countup(0, 8, 3):
+        var b1, b2, b3 : array[3, seq[Cell]]
+
+        b1[0] = grid[pos][0..2]
+        b1[1] = grid[pos + 1][0..2]
+        b1[2] = grid[pos + 2][0..2]
+
+        b2[0] = grid[pos][3..5]
+        b2[1] = grid[pos + 1][3..5]
+        b2[2] = grid[pos + 2][3..5]
+
+        b3[0] = grid[pos][6..8]
+        b3[1] = grid[pos + 1][6..8]
+        b3[2] = grid[pos + 2][6..8]
+
+        result.add(b1)
+        result.add(b2)
+        result.add(b3)

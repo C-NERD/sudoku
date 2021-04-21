@@ -1,9 +1,9 @@
-from random import randomize, sample
-from strutils import parseInt
-from sequtils import keepItIf
+from random import randomize, sample, shuffle
+#from strutils import parseInt
+#from sequtils import keepItIf
 import datafunc
 
-proc foreSight(tile : Tile, curcell, lastcell : Cell) : tuple[success : bool, tile : Tile] =
+#[proc foreSight(tile : Tile, curcell, lastcell : Cell) : tuple[success : bool, tile : Tile] =
 
     var
         tile = tile
@@ -68,13 +68,13 @@ proc foreSight(tile : Tile, curcell, lastcell : Cell) : tuple[success : bool, ti
                 tile[cellpos].value = originalvalue
                 break
 
-            if not tile.inspect(tile[cellpos]):
+            if tile.inspect(tile[cellpos]):
                 tile.correct(tile[cellpos].tilepos, originalvalue)
                 tile[cellpos].values.add(originalvalue.parseInt)
                 tile[cellpos].values.keepItIf(it != tile[cellpos].value.parseInt)
                 break
 
-            elif tile.inspect(tile[cellpos]) and values.len == 0:
+            elif not tile.inspect(tile[cellpos]) and values.len == 0:
                 #This checks if it's not able to find any suitable value
                 #from the list of available values if so it changes the
                 #cell value back to it's original one and then breaks the
@@ -112,4 +112,78 @@ proc backTrack*(tile : var Tile, cell : Cell) =
 
             if values.success:
                 tile = values.tile
-                break
+                break]#
+
+
+proc generateNumbers(tile : var Tile) =
+    randomize()
+
+    block toplevel:
+
+        for pos in 0..<tile.len:
+            if tile[pos].value != "":
+                continue
+
+            shuffle(numbers)
+
+            for number in numbers:
+
+                if tile.inspect(tile[pos], $number):
+                    tile[pos].value = $number
+
+                    if isTileFull(tile):
+                        break toplevel
+
+                    else:
+                        generateNumbers(tile)
+                        break toplevel
+
+
+#[proc generateNumbers*(tile : var Tile) =
+    echo "generating random numbers for grid..."
+
+    randomize()
+    block myBlock:
+
+        for num in 0..<tile.len:
+
+            while true:
+                var cellvalue : int
+                var num = num
+                
+                if tile[num].values == @[]:
+                    tile.backTrack(tile[num])
+                    break
+
+                else:
+                    cellvalue = sample(tile[num].values)
+
+                tile[num].value = $cellvalue
+
+                if not tile.inspect(tile[num]):
+
+                    if tile[num].values == @[] or tile[num].values.len <= 1:
+                        tile.backTrack(tile[num])
+                        break
+
+                    continue
+
+                else:
+                    for num2 in 0..<tile.len:
+                        if tile[num2].alias in tile[num].horizontal or 
+                        tile[num2].alias in tile[num].vertical or 
+                        tile[num2].alias in tile[num].box:
+
+                            let curindex = find(tile[num2].values, tile[num].value.parseInt)
+
+                            if curindex != -1:    
+                                tile[num2].values.del(curindex)
+
+                    break]#
+
+
+when isMainModule:
+    let grid = getGrid()
+    var tile = grid.toTile()
+    tile.generateNumbers()
+    tile.displayTile()
